@@ -40,7 +40,7 @@ WITH OverallAverage AS (
     FROM US_Household_Income
 ),
 
--- Subquery to calculate the average land area for each state
+
 StateAverage AS (
     SELECT 
         State_Name,
@@ -51,7 +51,7 @@ StateAverage AS (
         State_Name
 )
 
--- Main query to compare state-wise averages to the overall average
+
 SELECT 
     StateAverage.State_Name,
     StateAverage.AvgLandArea
@@ -62,6 +62,7 @@ WHERE
     StateAverage.AvgLandArea > OverallAverage.OverallAvgLand
 ORDER BY 
     StateAverage.AvgLandArea DESC;
+
 -- Task 15: Data Anomalies Detection
 WITH StateStats AS (
     SELECT 
@@ -103,3 +104,76 @@ WHERE
 ORDER BY 
     ABS(ZScore) DESC;
 -- Task 18: Advanced Data Encryption and Security
+-- add thêm cột mã hóa 
+ALTER TABLE US_Household_Income
+ADD COLUMN Encrypted_Zip_Code BLOB,
+ADD COLUMN Encrypted_Area_Code BLOB;
+-- Mã hóa dữ liệu
+SET @encryption_key = 'MySecretEncryptionKey123!';
+
+UPDATE US_Household_Income
+SET Encrypted_Zip_Code = AES_ENCRYPT(CAST(Zip_Code AS CHAR), @encryption_key),
+    Encrypted_Area_Code = AES_ENCRYPT(Area_Code, @encryption_key);
+-- Giải mã dlieu
+SET @encryption_key = 'MySecretEncryptionKey123!';
+
+SELECT 
+    City,
+    State_Name,
+    AES_DECRYPT(Encrypted_Zip_Code, @encryption_key) AS Decrypted_Zip_Code,
+    AES_DECRYPT(Encrypted_Area_Code, @encryption_key) AS Decrypted_Area_Code
+FROM 
+    US_Household_Income;
+
+--Task 21: Hotspot Detection 
+-- Gtri tbinh và độ lệch chuẩn dt đất
+WITH LandStats AS (
+    SELECT 
+        AVG(ALand) AS mean_land,
+        STDDEV(ALand) AS stddev_land
+    FROM US_Household_Income
+),
+
+-- Gtri tbinh và độ lệch chuẩn dt nước
+WaterStats AS (
+    SELECT 
+        AVG(AWater) AS mean_water,
+        STDDEV(AWater) AS stddev_water
+    FROM US_Household_Income
+),
+
+-- Z-Scores vùng đất, nước cho mỗi thành phố 
+ZScores AS (
+    SELECT 
+        City,
+        State_Name,
+        ALand,
+        AWater,
+        (ALand - (SELECT mean_land FROM LandStats)) / (SELECT stddev_land FROM LandStats) AS Z_Land,
+        (AWater - (SELECT mean_water FROM WaterStats)) / (SELECT stddev_water FROM WaterStats) AS Z_Water
+    FROM US_Household_Income
+),
+
+-- Sai lệch tổng thể
+DeviationScores AS (
+    SELECT 
+        City,
+        State_Name,
+        ALand,
+        AWater,
+        Z_Land,
+        Z_Water,
+        ABS(Z_Land) + ABS(Z_Water) AS Deviation_Score
+    FROM ZScores
+)
+
+-- Thành phố có điểm sai lệch cao nhất.
+SELECT 
+    City,
+    State_Name,
+    ALand AS Land_Area,
+    AWater AS Water_Area,
+    Deviation_Score
+FROM DeviationScores
+ORDER BY Deviation_Score DESC;
+
