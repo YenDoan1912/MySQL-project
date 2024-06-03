@@ -1,0 +1,105 @@
+--Task 3: Counting Cities per State
+SELECT 
+    State_Name,
+    State_ab,
+    COUNT(DISTINCT City) AS city_count
+FROM 
+    US_Household_Income
+GROUP BY 
+    State_Name, State_ab
+ORDER BY 
+    city_count DESC;
+-- Task 6: Using Window Functions for Ranking
+SELECT 
+    State_Name,
+    State_ab,
+    City,
+    ALand AS Land_Area,
+    ROW_NUMBER() OVER (PARTITION BY State_Name ORDER BY ALand DESC) AS Ranks
+FROM 
+    US_Household_Income
+ORDER BY 
+    State_Name, Ranks;
+-- Task 9: Identifying Cities with High Water to Land Ratios
+SELECT 
+    State_Name,
+    State_ab,
+    City,
+    ALand AS Land_Area,
+    AWater AS Water_Area,
+    (AWater / ALand) AS Water_to_Land_Ratio
+FROM 
+    US_Household_Income
+WHERE 
+    (AWater / ALand) > 0.5
+ORDER BY 
+    Water_to_Land_Ratio DESC;
+-- Task 12: Complex Multi-Level Subqueries
+WITH OverallAverage AS (
+    SELECT AVG(ALand) AS OverallAvgLand
+    FROM US_Household_Income
+),
+
+-- Subquery to calculate the average land area for each state
+StateAverage AS (
+    SELECT 
+        State_Name,
+        AVG(ALand) AS AvgLandArea
+    FROM 
+        US_Household_Income
+    GROUP BY 
+        State_Name
+)
+
+-- Main query to compare state-wise averages to the overall average
+SELECT 
+    StateAverage.State_Name,
+    StateAverage.AvgLandArea
+FROM 
+    StateAverage,
+    OverallAverage
+WHERE 
+    StateAverage.AvgLandArea > OverallAverage.OverallAvgLand
+ORDER BY 
+    StateAverage.AvgLandArea DESC;
+-- Task 15: Data Anomalies Detection
+WITH StateStats AS (
+    SELECT 
+        State_Name,
+        AVG(ALand) AS AvgLandArea,
+        STDDEV(ALand) AS StdDevLandArea
+    FROM 
+        US_Household_Income
+    GROUP BY 
+        State_Name
+),
+
+CityZScores AS (
+    SELECT 
+        u.State_Name,
+        u.State_ab,
+        u.City,
+        u.ALand AS Land_Area,
+        s.AvgLandArea,
+        s.StdDevLandArea,
+        (u.ALand - s.AvgLandArea) / s.StdDevLandArea AS ZScore
+    FROM 
+        US_Household_Income u
+    JOIN 
+        StateStats s ON u.State_Name = s.State_Name
+)
+
+SELECT 
+    State_Name,
+    State_ab,
+    City,
+    Land_Area,
+    AvgLandArea,
+    ZScore AS Anomaly_Score
+FROM 
+    CityZScores
+WHERE 
+    ABS(ZScore) > 2
+ORDER BY 
+    ABS(ZScore) DESC;
+-- Task 18: Advanced Data Encryption and Security
